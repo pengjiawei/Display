@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Display</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_interval">SetInterval</string>
+    <string name="action_setIp">SetIp</string>
+    <string name="about">About</string>
+</resources>

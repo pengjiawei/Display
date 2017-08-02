@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    xmlns:Android="http://schemas.android.com/tools"
+    android:orientation="vertical">
+
+
+
+    <EditText
+        android:id="@+id/editTestX"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:focusable="true"
+        android:digits="1234567890."
+        android:focusableInTouchMode="true">
+    </EditText>
+
+
+    <EditText
+        android:id="@+id/editTextY"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+
+    <EditText
+        android:id="@+id/editTextTheta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+</LinearLayout>

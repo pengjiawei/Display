@@ -1,0 +1,38 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.example.a91752.display.MainActivity">
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="1"
+        android:title="@string/action_settings"
+        app:showAsAction="never"
+        android:visible="true"
+        android:textSize="16sp"/>
+
+    <item
+        android:id="@+id/action_setIp"
+        android:orderInCategory="1"
+        android:title="@string/action_setIp"
+        app:showAsAction="never"
+        android:visible="true"
+        android:textSize="16sp"/>
+
+    <item
+        android:id="@+id/action_setInterval"
+        android:orderInCategory="1"
+        android:title="@string/action_interval"
+        app:showAsAction="never"
+        android:visible="true"
+        android:textSize="16sp"/>
+
+    <item
+        android:id="@+id/about"
+        android:orderInCategory="1"
+        android:title="@string/about"
+        app:showAsAction="never"
+        android:visible="true"
+        android:textSize="16sp"/>
+
+
+</menu>
