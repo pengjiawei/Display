@@ -5,39 +5,27 @@ import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.graphics.RectF;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.telephony.PhoneNumberFormattingTextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.animation.TranslateAnimation;
 import android.view.inputmethod.EditorInfo;
-import android.widget.Button;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.request.animation.GlideAnimation;
-import com.bumptech.glide.request.target.SimpleTarget;
-import com.facebook.drawee.backends.pipeline.Fresco;
 import com.github.chrisbanes.photoview.PhotoView;
 import com.squareup.picasso.MemoryPolicy;
 import com.squareup.picasso.NetworkPolicy;
 import com.squareup.picasso.Picasso;
-import com.squareup.picasso.Target;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -63,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
     private Switch flag;
 
     private String getMapURL;
-    private String setXYThetaURL;
+    private String setXYThetaURL = "http://" + nginxip + ":8866/set?" + "x=?&y=?&theta=?";
     private Timer timer = new Timer();
     //初始化定时任务
     private TimerTask task = new getImgTask();
@@ -72,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
     private String theta;
     private String interval = "2000";
     private boolean isRunning = true;
+    private String TAG = "MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
         //初始化控件
         init();
 
-        handler = new getPictureHandler();
+        //启动定时任务
         timer.schedule(task, Long.parseLong(interval), Long.parseLong(interval));
     }
 
@@ -96,6 +85,8 @@ public class MainActivity extends AppCompatActivity {
         photoView.setMediumScale(4f);
         countTextView = (TextView) findViewById(R.id.countT);
         responseCodeT = (TextView) findViewById(R.id.code);
+        handler = new getPictureHandler();
+
     }
 
     //创建菜单及其子项目
@@ -148,6 +139,7 @@ public class MainActivity extends AppCompatActivity {
 
             inputDialog.setTitle("输入请求的间隔时间，单位ms").setView(inflate);
             editTextIp.setInputType(EditorInfo.TYPE_CLASS_PHONE);
+            editTextIp.setText(interval);
             inputDialog.setPositiveButton("confirm", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
@@ -167,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
             final TextView Tview = (TextView) inflate.findViewById(R.id.aboutT);
             final AlertDialog.Builder inputDialog = new AlertDialog.Builder(MainActivity.this);
             inputDialog.setTitle("当前请求的URL以及请求间隔").setView(inflate);
-            Log.d("TAG", interval + " " + getMapURL + " " + setXYThetaURL);
+            Log.d(TAG, interval + " " + getMapURL + " " + setXYThetaURL);
             Tview.setText("Interval : " + interval + "ms" + "\n" + "MapURL : " + getMapURL + "\n" + "SetXYThetaURL : " + setXYThetaURL);
             inputDialog.setPositiveButton("confirm", new DialogInterface.OnClickListener() {
                 @Override
@@ -184,25 +176,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         isRunning = false;
-        //之前定义的message.what
-        Log.d("TAG", "activity destroy");
-
         task.cancel();
         timer.cancel();
-
-        // Glide.with(getApplicationContext()).pauseRequests();
+        Log.d(TAG, "activity destroy");
     }
 
     //定时器的定时任务
     class getImgTask extends TimerTask {
         @Override
         public void run() {
-            Log.d("updateThreadName", Thread.currentThread().getName());
-            Log.d("updateThreadId", String.valueOf(Thread.currentThread().getId()));
             getMapURL = "http://" + nginxip + ":8866/map";
-            // getMapURL = "http://192.168.31.90:8080/image/map.jpeg";
             Bitmap b = null;
-            //b = getHttpBitmap(getMapURL);
             try {
                 //get为同步方式获取，fetch为异步
                 b = Picasso.with(context).load(getMapURL)
@@ -219,43 +203,7 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    Log.d("TAG", "url = " + getMapURL);
-//                    Glide.with(getApplicationContext()).load(getMapURL).asBitmap().into(new SimpleTarget<Bitmap>() {
-//                        @Override
-//                        public void onResourceReady(Bitmap resource, GlideAnimation<? super Bitmap> glideAnimation) {
-//                            bitmap = resource;
-//                        }
-//                    });
-                    if (isRunning) {
-//                        float scale = photoView.getScale();
-//                        int[] offset = new int[2];
-//                        float[] values = new float[9];
-//                        Matrix matrix = new Matrix();
-//                        photoView.getSuppMatrix(matrix);
-//
-//                        matrix.getValues(values);
-//                        // x方向上的偏移量(单位px)
-//                        offset[0] = (int) values[2];
-//                        // y方向上的偏移量(单位px)
-//                        offset[1] = (int) values[5];
-//                        Log.d("TAG","offset[0]"+offset[0]);
-//                        Log.d("TAG","offset[1]"+offset[1]);
-//                        Log.d("scale", String.valueOf(scale));
-//                        Glide.with(getApplicationContext()).load(getMapURL).asBitmap().into(new SimpleTarget<Bitmap>() {
-//                            @Override
-//                            public void onResourceReady(Bitmap resource, GlideAnimation<? super Bitmap> glideAnimation) {
-//                                bitmap = resource;
-//                            }
-//                        });
-
-                        //Picasso.with(context).load(getMapURL).memoryPolicy(MemoryPolicy.NO_CACHE).into(photoView);
-                        //  Log.d("TAG","setDrawable success!");
-//                        Log.d("TAG","bitmap.width"+bitmap.getWidth());
-                        //photoView.setImageBitmap(bitmap);
-                        //photoView.setScale(scale);
-                        //  photoView.setSuppMatrix(matrix);
-
-                    }
+                    Log.d(TAG, "getMapUrl = " + getMapURL);
                     countTextView.setText(String.valueOf(count));
                     count++;
                 }
@@ -282,16 +230,18 @@ public class MainActivity extends AppCompatActivity {
                 offset[0] = (int) values[2];
                 // y方向上的偏移量(单位px)
                 offset[1] = (int) values[5];
-                Log.d("TAG", "offset[0]" + offset[0]);
-                Log.d("TAG", "offset[1]" + offset[1]);
+                Log.d(TAG, "offset[0]" + offset[0]);
+                Log.d(TAG, "offset[1]" + offset[1]);
 
                 Log.d("scale", String.valueOf(scale));
 
                 photoView.getSuppMatrix(matrix);
 
                 photoView.setImageBitmap(b);
-
-                photoView.setScale(scale);
+                Log.d(TAG,"min scale"+photoView.getMinimumScale());
+                if (scale > photoView.getMinimumScale()&& scale < photoView.getMaximumScale()){
+                    photoView.setScale(scale);
+                }
 
                 photoView.setSuppMatrix(matrix);
             }
@@ -339,14 +289,8 @@ public class MainActivity extends AppCompatActivity {
         }).show();
     }
 
-    //使用glide库加载网络图片
+    //自定义http请求加载网络图片
     public Bitmap getHttpBitmap(String url) {
-//        Glide.with(getApplicationContext()).load(url).asBitmap().into(new SimpleTarget<Bitmap>() {
-//            @Override
-//            public void onResourceReady(Bitmap resource, GlideAnimation<? super Bitmap> glideAnimation) {
-//                bitmap = resource;
-//            }
-//        });
         URL myFileUrl = null;
         Bitmap bitmap = null;
         Log.d("TAG", "url = " + url);
@@ -525,8 +469,6 @@ public class MainActivity extends AppCompatActivity {
             connection.connect();
             Log.d("get response code", String.valueOf(connection.getResponseCode()));
             connection.disconnect();
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
