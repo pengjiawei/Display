@@ -17,12 +17,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.github.chrisbanes.photoview.PhotoView;
+import com.squareup.leakcanary.LeakCanary;
 import com.squareup.picasso.MemoryPolicy;
 import com.squareup.picasso.NetworkPolicy;
 import com.squareup.picasso.Picasso;
@@ -32,6 +34,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,9 +50,8 @@ public class MainActivity extends AppCompatActivity {
     private int count = 1;
     private Context context;
     private Bitmap bitmap;
-    private String nginxip = "192.168.31.175";
+    private String nginxip = "192.168.31.174";
     private Handler handler;
-    private Switch flag;
 
     private String getMapURL;
     private String setXYThetaURL = "http://" + nginxip + ":8866/set?" + "x=?&y=?&theta=?";
@@ -61,17 +64,25 @@ public class MainActivity extends AppCompatActivity {
     private String interval = "2000";
     private boolean isRunning = true;
     private String TAG = "MainActivity";
+    private int change = 1;
+
+
+    ServerSocket ss = null;
+    Socket socket = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        LeakCanary.install(getApplication());
         setContentView(R.layout.activity_main);
         context = getApplicationContext();
         //初始化控件
         init();
 
         //启动定时任务
-        timer.schedule(task, Long.parseLong(interval), Long.parseLong(interval));
+        //timer.schedule(task, Long.parseLong(interval), Long.parseLong(interval));
+
+
     }
 
     //双击图片一次，图片被放大scale=4f，双击第二次，图片放大scale=12f，双击第三次还原
@@ -83,10 +94,76 @@ public class MainActivity extends AppCompatActivity {
         //设置放大的中等规模和最大规模
         photoView.setMaximumScale(12f);
         photoView.setMediumScale(4f);
+
         countTextView = (TextView) findViewById(R.id.countT);
         responseCodeT = (TextView) findViewById(R.id.code);
         handler = new getPictureHandler();
 
+
+        try {
+            ss = new ServerSocket(10101);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Log.d(TAG,"new serverSocket!!!!!!!!!");
+
+            new SocketThread(socket).start();
+        }
+
+    class SocketThread extends Thread{
+        private Socket socket_;
+        public SocketThread(Socket socket) {
+            this.socket_ = socket;
+        }
+        @Override
+        public void run() {
+
+            Bitmap rebitmap = null;
+            try {
+
+                while (true) {
+
+                    socket_ = ss.accept();
+                    socket_.setKeepAlive(true);
+                    socket_.setTcpNoDelay(true);
+
+                    long startTime = System.currentTimeMillis();
+                    Log.d(TAG,"begin time = "+startTime);
+                    Log.d(TAG,"local port = "+socket_.getLocalPort());
+                    Log.d(TAG, "port = "+socket_.getPort());
+                    String ip = socket_.getInetAddress().getHostAddress();
+                    Log.d(TAG,"client ip = "+ip);
+                    InputStream in = socket_.getInputStream();
+
+                    rebitmap = BitmapFactory.decodeStream(in);
+                    if (null != rebitmap){
+                        Message msg = handler.obtainMessage();
+                        msg.what = 0;
+                        msg.obj = rebitmap;
+                        handler.sendMessage(msg);
+                        long endTime = System.currentTimeMillis();
+                        Log.d(TAG,"end time = "+endTime);
+                        Log.d(TAG,"opt time = "+(endTime-startTime));
+                    }else {
+                        Log.d(TAG, "bitmap is null or bitmap is error format");
+                    }
+//                    ss.close();
+//                    socket.close();
+                    Log.d(TAG,"socket is closed? = "+socket_.isClosed());
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            countTextView.setText(String.valueOf(count));
+                            count++;
+                        }
+                    });
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     //创建菜单及其子项目
@@ -160,7 +237,7 @@ public class MainActivity extends AppCompatActivity {
             final AlertDialog.Builder inputDialog = new AlertDialog.Builder(MainActivity.this);
             inputDialog.setTitle("当前请求的URL以及请求间隔").setView(inflate);
             Log.d(TAG, interval + " " + getMapURL + " " + setXYThetaURL);
-            Tview.setText("Interval : " + interval + "ms" + "\n" + "MapURL : " + getMapURL + "\n" + "SetXYThetaURL : " + setXYThetaURL);
+            Tview.setText("Interval : " + interval + "ms" + "\n" + "MapURL : " + getMapURL + "\n" + "SetXYThetaURL : " + setXYThetaURL+"\n"+"local ip :"+Tool.getIP(context));
             inputDialog.setPositiveButton("confirm", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
@@ -176,28 +253,39 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         isRunning = false;
-        task.cancel();
-        timer.cancel();
+//        task.cancel();
+//        timer.cancel();
+        try {
+            ss.close();
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //Picasso.with(context).cancelRequest(photoView);
         Log.d(TAG, "activity destroy");
     }
 
     //定时器的定时任务
-    class getImgTask extends TimerTask {
+    private class getImgTask extends TimerTask {
         @Override
         public void run() {
             getMapURL = "http://" + nginxip + ":8866/map";
-            Bitmap b = null;
-            try {
-                //get为同步方式获取，fetch为异步
-                b = Picasso.with(context).load(getMapURL)
-                        .memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE)
-                        .networkPolicy(NetworkPolicy.NO_CACHE, NetworkPolicy.NO_STORE).get();
-            } catch (IOException e) {
-                e.printStackTrace();
+
+            if (change % 2 == 0){
+                try {
+                    //get为同步方式获取，fetch为异步
+                    bitmap = Picasso.with(context).load(getMapURL)
+                            .memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE)
+                            .networkPolicy(NetworkPolicy.NO_CACHE, NetworkPolicy.NO_STORE).get();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }else {
+                bitmap = (Bitmap) Tool.getPgmImage(getMapURL).get("img");
             }
             Message msg = handler.obtainMessage();
             msg.what = 0;
-            msg.obj = b;
+            msg.obj = bitmap;
             handler.sendMessage(msg);
 
             runOnUiThread(new Runnable() {
@@ -212,7 +300,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //处理附带图片的消息的handler
-    class getPictureHandler extends Handler {
+    private class getPictureHandler extends Handler {
 
         @Override
         public void handleMessage(Message msg) {
@@ -233,12 +321,9 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "offset[0]" + offset[0]);
                 Log.d(TAG, "offset[1]" + offset[1]);
 
-                Log.d("scale", String.valueOf(scale));
-
+                Log.d(TAG, "scale"+String.valueOf(scale));
                 photoView.getSuppMatrix(matrix);
-
                 photoView.setImageBitmap(b);
-                Log.d(TAG,"min scale"+photoView.getMinimumScale());
                 if (scale > photoView.getMinimumScale()&& scale < photoView.getMaximumScale()){
                     photoView.setScale(scale);
                 }
@@ -289,185 +374,17 @@ public class MainActivity extends AppCompatActivity {
         }).show();
     }
 
-    //自定义http请求加载网络图片
-    public Bitmap getHttpBitmap(String url) {
-        URL myFileUrl = null;
-        Bitmap bitmap = null;
-        Log.d("TAG", "url = " + url);
-        try {
-            myFileUrl = new URL(url);
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
-        try {
-            HttpURLConnection conn = (HttpURLConnection) myFileUrl
-                    .openConnection();
-            conn.setConnectTimeout(5000);
-            conn.setDoInput(true);
-            conn.setUseCaches(false);
-            conn.connect();
-            Log.d("TAG", "response code = " + conn.getResponseCode());
-            InputStream is = conn.getInputStream();
-            bitmap = BitmapFactory.decodeStream(is);
-            is.close();
-            conn.disconnect();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        Log.d("bitmap", String.valueOf(bitmap.getWidth()));
-        return bitmap;
-    }
-
-    //请求pgm格式图片的方法
-    public static Map<String, Object> getPgmImage(String url) {
-        int responseCode = -10;
-        Map<String, Object> mapimg = new HashMap<>();
-        Bitmap img = null;
-        HttpURLConnection conn = null;
-        InputStream is = null;
-        DataInputStream in = null;
-        try {
-            //URL picurl = new URL(url+"/map");
-            if (!url.contains("http")) {
-                url = "http://" + url;
-            }
-            URL picurl = new URL(url);
-            // 获得连接
-
-            conn = (HttpURLConnection) picurl.openConnection();
-
-            //conn.setRequestProperty("Connection", "Keep-Alive");
-            conn.setConnectTimeout(6000);//设置超时
-            conn.setDoInput(true);
-            conn.setUseCaches(false);//不缓存
-            Log.d("method", conn.getRequestMethod());
-            Log.d("request", conn.getRequestProperties().toString());
-            Log.d("url", conn.getURL().toString());
-            conn.connect();
-
-            // responseCode = conn.getResponseCode();
-            Log.d("TAG", String.valueOf(responseCode));
-            is = conn.getInputStream();//获得图片的数据流
-
-            /***********************/
-            in = new DataInputStream(is);
-            Log.d("TAG", in.toString());
-            char ch0 = (char) in.readByte();
-            char ch1 = (char) in.readByte();
-            if (ch0 != 'P') {
-                Log.i("-------------", "Not a pgm image!" + " [0]=" + ch0 + ", [1]=" + ch1);
-                //System.exit(0);
-            }
-            if (ch1 != '2' && ch1 != '5') {
-                Log.i("-------------", "Not a pgm image!" + " [0]=" + ch0 + ", [1]=" + ch1);
-                //System.exit(0);
-            }
-            in.readByte();                  //读空格
-            char c = (char) in.readByte();
-
-            if (c == '#')                    //读注释行
-            {
-                do {
-                    c = (char) in.readByte();
-                } while ((c != '\n') && (c != '\r'));
-                c = (char) in.readByte();
-            }
-
-            //读出宽度
-            if (c < '0' || c > '9') {
-                Log.d("TAG", "Error!");
-                //System.exit(1);
-            }
-
-            int k = 0;
-            do {
-                k = k * 10 + c - '0';
-                c = (char) in.readByte();
-            } while (c >= '0' && c <= '9');
-            int width = k;
-
-            //读出高度
-            c = (char) in.readByte();
-            if (c < '0' || c > '9') {
-                System.out.print("Errow!");
-                //System.exit(1);
-            }
-
-            k = 0;
-            do {
-                k = k * 10 + c - '0';
-                c = (char) in.readByte();
-            } while (c >= '0' && c <= '9');
-            int height = k;
-
-            //读出灰度最大值
-            c = (char) in.readByte();
-            if (c < '0' || c > '9') {
-                Log.i("Errow!", "灰度读取错误");
-                //System.exit(1);
-            }
-
-            k = 0;
-            do {
-                k = k * 10 + c - '0';
-                c = (char) in.readByte();
-            } while (c >= '0' && c <= '9');
-            int maxpix = k;
-
-            int[] pixels = new int[width * height];
-            Log.d("TAG", "width = " + width);
-            Log.d("TAG", "height = " + height);
-            for (int i = 0; i < width * width; i++) {
-                int b = 0;
-                try {
-                    b = in.readByte();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    break;
-                }
-                //Log.i("----",""+b);
-                if (b < 0) b = b + 256;
-                pixels[i] = (255 << 24) | (b << 16) | (b << 8) | b;
-            }
-            double scaleRate = 1;
-            Log.d("pattern", width + " " + height);
-            mapimg.put("W", width);
-            mapimg.put("H", height);
-            img = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_4444);
-            img.setPixels(pixels, 0, (int) (width), 0, 0, (int) (width * scaleRate), (int) (height * scaleRate));
-            /********************************/
-            Log.d("TAG", String.valueOf(img.getByteCount()));
-            mapimg.put("img", img);
-            mapimg.put("responseCode", responseCode);
-            is.close();
-            in.close();
-            conn.disconnect();
-        } catch (Exception e) {
-            try {
-                is.close();
-                in.close();
-            } catch (IOException e1) {
-                e1.printStackTrace();
-            }
-
-            e.printStackTrace();
-        }
-        Log.d("TAG", String.valueOf(responseCode));
-        return mapimg;
-    }
-
     //设置x,y,theta的get请求
     public void setXYTheta(String x, String y, String theta) {
         setXYThetaURL = "http://" + nginxip + ":8866/set?" + "x=" + x + "&y=" + y + "&theta=" + theta;
-        Log.d("geturl", setXYThetaURL);
+        Log.d(TAG, "set xytheta url = "+setXYThetaURL);
         try {
             URL GetUrl = new URL(setXYThetaURL);
             HttpURLConnection connection = (HttpURLConnection) GetUrl.openConnection();
             connection.setRequestProperty("Connection", "close");
             connection.setConnectTimeout(5000);
             connection.connect();
-            Log.d("get response code", String.valueOf(connection.getResponseCode()));
+            Log.d(TAG, "response code = "+connection.getResponseCode());
             connection.disconnect();
         } catch (IOException e) {
             e.printStackTrace();
