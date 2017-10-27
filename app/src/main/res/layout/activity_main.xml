@@ -61,7 +61,7 @@
     android:paddingBottom="25dp"
     android:layout_margin="16dp"
     >
-    <LinearLayout
+    <RelativeLayout
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -69,9 +69,11 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="请求次数"
+        android:text="请求成功次数"
         android:textSize="16dp"
+        android:id="@+id/times"
         android:layout_margin="8dp"
+        android:layout_centerVertical="true"
         />
 
     <TextView
@@ -79,24 +81,30 @@
         android:layout_height="wrap_content"
         android:id="@+id/countT"
         android:gravity="center"
+        android:layout_toRightOf="@+id/times"
         android:text="0"
+        android:layout_centerVertical="true"
         android:layout_margin="8dp"
         />
-    </LinearLayout>
-    <!--<Button-->
-    <!--android:layout_width="wrap_content"-->
-    <!--android:layout_height="wrap_content"-->
-    <!--android:text="Button"-->
-    <!--android:textSize="16dp"-->
-        <!--android:id="@+id/mButton"/>-->
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:id="@+id/goal"
+            android:text="设置目标"
+            android:textSize="16dp"
+            android:layout_margin="8dp"
+            android:layout_alignParentRight="true"/>
+    </RelativeLayout>
     <!--<Switch-->
         <!--android:layout_width="wrap_content"-->
         <!--android:layout_height="wrap_content"-->
-        <!--android:textSize="16dp"-->
+        <!--android:layout_gravity="center_horizontal"-->
+        <!--android:textSize="20dp"-->
         <!--android:id="@+id/changeFlag"-->
-        <!--android:checked="true"-->
-        <!--android:textOff="PGM"-->
-        <!--android:textOn="JPG"/>-->
+        <!--android:checked="false"-->
+        <!--android:showText="true"-->
+        <!--android:textOff="TCP"-->
+        <!--android:textOn="HTTP"/>-->
     <TextView
         android:id="@+id/code"
         android:layout_width="match_parent"

@@ -51,7 +51,7 @@ public class Tool {
         return null;
     }
     //自定义http请求加载网络图片
-    public Bitmap getHttpBitmap(String url) {
+    public static Bitmap getHttpBitmap(String url) {
         URL myFileUrl = null;
         Bitmap bitmap = null;
         Log.d("TAG", "url = " + url);
@@ -295,5 +295,36 @@ public class Tool {
         }
         Log.d("TAG", String.valueOf(responseCode));
         return mapimg;
+    }
+
+    /**
+     * 将int类型的数据转换为byte数组 原理：将int数据中的四个byte取出，分别存储
+     *
+     * @param n  int数据
+     * @return 生成的byte数组
+     */
+    public static byte[] intToBytes2(int n) {
+        byte[] b = new byte[4];
+        for (int i = 0; i < 4; i++) {
+            b[i] = (byte) (n >> (24 - i * 8));
+        }
+        return b;
+    }
+    /**
+     * 将int转为低字节在前，高字节在后的byte数组
+     */
+    private static byte[] toLH(int n) {
+        byte[] b = new byte[4];
+        b[0] = (byte) (n & 0xff);
+        b[1] = (byte) (n >> 8 & 0xff);
+        b[2] = (byte) (n >> 16 & 0xff);
+        b[3] = (byte) (n >> 24 & 0xff);
+        return b;
+    }
+    /**
+     * 将float转为低字节在前，高字节在后的byte数组
+     */
+    public static byte[] toLH(float f) {
+        return toLH(Float.floatToRawIntBits(f));
     }
 }
