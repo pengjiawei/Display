@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.nfc.Tag;
 import android.util.Log;
+import android.widget.TextView;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -30,6 +31,9 @@ import java.util.Map;
  */
 
 public class Tool {
+    public static class ViewHolder{
+        TextView textView;
+    }
     public static String getIP(Context context){
 
         try {

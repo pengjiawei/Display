@@ -7,6 +7,7 @@
     tools:context="com.example.a91752.display.MainActivity"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:keepScreenOn="true"
     android:elevation="1dp">
 
     <android.support.v7.widget.Toolbar
@@ -89,27 +90,13 @@
         <Button
             android:layout_width="wrap_content"
             android:layout_height="40dp"
-            android:id="@+id/goal"
-            android:text="设置目标"
+            android:id="@+id/show_plan"
+            android:text="SHOWPLAN"
             android:textSize="16dp"
             android:layout_margin="8dp"
             android:layout_alignParentRight="true"/>
     </RelativeLayout>
-    <!--<Switch-->
-        <!--android:layout_width="wrap_content"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:layout_gravity="center_horizontal"-->
-        <!--android:textSize="20dp"-->
-        <!--android:id="@+id/changeFlag"-->
-        <!--android:checked="false"-->
-        <!--android:showText="true"-->
-        <!--android:textOff="TCP"-->
-        <!--android:textOn="HTTP"/>-->
-    <TextView
-        android:id="@+id/code"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="8dp" />
+
 
 </LinearLayout>
     <!--<include layout="@layout/content_main" />-->

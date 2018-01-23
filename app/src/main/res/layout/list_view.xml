@@ -1,0 +1,28 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+     >
+
+    <!--<TextView-->
+        <!--android:layout_width="match_parent"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:id="@+id/inflation_view"/>-->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:id="@+id/pull_to_refresh_parent">
+    <com.yalantis.phoenix.PullToRefreshView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/pull_to_refresh"
+        >
+        <ListView
+            android:id="@+id/wifi_list_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+        </ListView>
+    </com.yalantis.phoenix.PullToRefreshView>
+    </RelativeLayout>
+</LinearLayout>
