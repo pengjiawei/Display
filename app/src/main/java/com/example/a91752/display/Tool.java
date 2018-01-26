@@ -1,9 +1,11 @@
 package com.example.a91752.display;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.nfc.Tag;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import android.widget.TextView;
 
@@ -302,22 +304,9 @@ public class Tool {
     }
 
     /**
-     * 将int类型的数据转换为byte数组 原理：将int数据中的四个byte取出，分别存储
-     *
-     * @param n  int数据
-     * @return 生成的byte数组
-     */
-    public static byte[] intToBytes2(int n) {
-        byte[] b = new byte[4];
-        for (int i = 0; i < 4; i++) {
-            b[i] = (byte) (n >> (24 - i * 8));
-        }
-        return b;
-    }
-    /**
      * 将int转为低字节在前，高字节在后的byte数组
      */
-    private static byte[] toLH(int n) {
+    public static byte[] int2byte(int n) {
         byte[] b = new byte[4];
         b[0] = (byte) (n & 0xff);
         b[1] = (byte) (n >> 8 & 0xff);
@@ -328,7 +317,24 @@ public class Tool {
     /**
      * 将float转为低字节在前，高字节在后的byte数组
      */
-    public static byte[] toLH(float f) {
-        return toLH(Float.floatToRawIntBits(f));
+    public static byte[] float2byte(float f) {
+        return int2byte(Float.floatToRawIntBits(f));
+    }
+
+
+    public static int byte2int(byte[] res) {
+        // 一个byte数据左移24位变成0x??000000，再右移8位变成0x00??0000
+
+        int targets = (res[0] & 0xff) | ((res[1] << 8) & 0xff00) // | 表示安位或
+                | ((res[2] << 24) >>> 8) | (res[3] << 24);
+        return targets;
+    }
+
+    public static byte[] addBytes(byte[] data1, byte[] data2) {
+        byte[] data3 = new byte[data1.length + data2.length];
+        System.arraycopy(data1, 0, data3, 0, data1.length);
+        System.arraycopy(data2, 0, data3, data1.length, data2.length);
+        return data3;
+
     }
 }

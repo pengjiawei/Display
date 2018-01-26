@@ -62,15 +62,30 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
+	private final OkHttpClient client = new OkHttpClient();
+	public WifiManager wifiManager;
+	String wifiPassWord = null;
+	boolean listenStatus = true;
+	ServerSocket ss = null;
+	DatagramSocket logSs = null;
+	Socket recvMapSocket = null;
+	Socket sendXYSocket = null;
+	String text = "";
+	Paint frontierPaint, posePaint, currentPosePaint, planPaint;
+	Path frontierPath, posePath;
+	int width = 480, height = 480;
+	String[] frontier;
+	List<String> plan = new ArrayList<>();
+	float poseX = 0, poseY = 0, startPoseX = 0, startPoseY = 0, lastPoseX = 0, lastPoseY = 0;
+	int isStart = 1;
+	int httpTimeout = 5; // unit seconds
+	boolean showPlan = true;
+	private Context context;
 	private PhotoView photoView;
 	private TextView countTextView;
 	private int count = 1;
-	private Context context;
-
-	private String nginxip = "192.168.31.27";
-	private String mobileWifi = "192.168.2.1";
 	private Handler handler;
-
+	private String nginxip = "192.168.2.1";
 	private String getMapURL;
 	private String setXYThetaURL = "http://" + nginxip + ":8866/goal?" + "x=?&y=?&theta=?";
 	private Timer timer = new Timer();
@@ -79,48 +94,20 @@ public class MainActivity extends AppCompatActivity {
 	private String x;
 	private String y;
 	private String theta;
-
 	private String lastX;
 	private String lastY;
 	private String lastTheta;
-
 	private String interval = "500";
 	private boolean isRunning = true;
 	private String TAG = "MainActivity";
 	private List<ScanResult> scanResults;
-	String wifiPassWord = null;
-
-	boolean listenStatus = true;
-	public WifiManager wifiManager;
-	ServerSocket ss = null;
-	DatagramSocket logSs = null;
-	Socket recvMapSocket = null;
-	Socket sendXYSocket = null;
-	String text = "";
-
-	Paint frontierPaint, posePaint, currentPosePaint, planPaint;
-	Path frontierPath, posePath;
-	int width = 480, height = 480;
-	String[] frontier;
-
-	List<String> plan = new ArrayList<>();
-	float poseX = 0, poseY = 0, startPoseX = 0, startPoseY = 0, lastPoseX = 0, lastPoseY = 0;
 	private float frontierStrokeWidth = 1.0f;
 	private float poseStrokeWidth = 0.5f;
 	private String wifiID;
-
 	private List<Float> trajectoryX = new ArrayList<>();
 	private List<Float> trajectoryY = new ArrayList<>();
-
-	private final OkHttpClient client = new OkHttpClient();
-	int isStart = 1;
-
-	int httpTimeout = 5; // unit seconds
-
 	private PullToRefreshView pullToRefreshView;
 	private BaseAdapter adapter;
-	boolean showPlan = true;
-
 	private String pose_s = null;
 
 	@Override
@@ -148,12 +135,10 @@ public class MainActivity extends AppCompatActivity {
 	private void init() {
 		Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
 		setSupportActionBar(toolbar);
-
 		photoView = (PhotoView) findViewById(R.id.img);
 		// 设置放大的中等规模和最大规模
 		photoView.setMaximumScale(12f);
 		photoView.setMediumScale(4f);
-
 		countTextView = (TextView) findViewById(R.id.countT);
 
 		handler = new getPictureHandler();
@@ -203,89 +188,6 @@ public class MainActivity extends AppCompatActivity {
 		wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 	}
 
-	@Deprecated
-	class SocketThread extends Thread {
-		private Socket socket_;
-
-		public SocketThread(Socket socket) {
-			this.socket_ = socket;
-		}
-
-		@Override
-		public void run() {
-			Bitmap rebitmap;
-			try {
-				while (true) {
-					socket_ = ss.accept();
-					socket_.setKeepAlive(true);
-					socket_.setTcpNoDelay(true);
-
-					long startTime = System.currentTimeMillis();
-					Log.d(TAG, "begin time = " + startTime);
-					Log.d(TAG, "local port = " + socket_.getLocalPort());
-					Log.d(TAG, "port = " + socket_.getPort());
-					String ip = socket_.getInetAddress().getHostAddress();
-					Log.d(TAG, "client ip = " + ip);
-					InputStream in = socket_.getInputStream();
-
-					rebitmap = BitmapFactory.decodeStream(in);
-					if (null != rebitmap) {
-						Message msg = handler.obtainMessage();
-						msg.what = 0;
-						msg.obj = rebitmap;
-						handler.sendMessage(msg);
-						long endTime = System.currentTimeMillis();
-						Log.d(TAG, "end time = " + endTime);
-						Log.d(TAG, "opt time = " + (endTime - startTime));
-					} else {
-						Log.d(TAG, "bitmap is null or bitmap is error format");
-					}
-					// ss.close();
-					// socket.close();
-					Log.d(TAG, "socket is closed? = " + socket_.isClosed());
-
-					runOnUiThread(new Runnable() {
-						@Override
-						public void run() {
-							countTextView.setText(String.valueOf(count));
-							count++;
-						}
-					});
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
-	// 接收小车程序的日志
-	class recvLogThread extends Thread {
-		@Override
-		public void run() {
-
-			try {
-				while (listenStatus) {
-					Log.d(TAG, "run: recvlogThread!!!!!!!!");
-					byte[] b = new byte[4096];
-					DatagramPacket recv = new DatagramPacket(b, 4096);
-
-					// logSs.setSoTimeout(2000);
-					logSs.receive(recv);
-					b = recv.getData();
-					String tmp = new String(b, 0, recv.getLength());
-
-					Log.d(TAG, "port = " + recv.getPort());
-					Log.d(TAG, "client ip = " + recv.getAddress().getHostAddress());
-					Log.d(TAG, "tmp recv data = " + tmp);
-					text = text + tmp;
-					Log.d(TAG, "text = " + text);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
 	// 创建菜单及其子项目
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -303,38 +205,31 @@ public class MainActivity extends AppCompatActivity {
 		int id = item.getItemId();
 
 		if (id == R.id.action_setIp) {
-			LayoutInflater factory = LayoutInflater.from(this);
-			final View inflate = factory.inflate(R.layout.one_dialog, null);
-			final EditText editTextIp = (EditText) inflate.findViewById(R.id.editTextOneDialog);
+			CustomDialog customDialog = new CustomDialog(MainActivity.this,0,R.layout.one_dialog);
+			final EditText editTextIp = (EditText) customDialog.findViewById(R.id.editTextOneDialog);
+			customDialog.setTitle("输入请求的ip地址");
 			editTextIp.requestFocus();
-			final AlertDialog.Builder inputDialog = new AlertDialog.Builder(MainActivity.this);
-
-			inputDialog.setTitle("输入请求的ip地址").setView(inflate);
 			editTextIp.setInputType(EditorInfo.TYPE_CLASS_PHONE);
 			editTextIp.setText(nginxip);
-			inputDialog.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+			customDialog.setButton(DialogInterface.BUTTON_POSITIVE,"确定",new DialogInterface.OnClickListener(){
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					nginxip = editTextIp.getText().toString();
 					setXYThetaURL = "http://" + nginxip + ":8866/set?" + "x=" + x + "&y=" + y
-					        + "&theta=" + theta;
+							+ "&theta=" + theta;
 					Toast.makeText(getApplicationContext(), "设置IP地址为 " + nginxip, Toast.LENGTH_LONG)
-					        .show();
+							.show();
 				}
-			}).show();
+			});
+			customDialog.show();
 		} else if (id == R.id.action_setInterval) {
-			LayoutInflater factory = LayoutInflater.from(this);
-			final View inflate = factory.inflate(R.layout.one_dialog, null);
-
-			final EditText editTextIp = (EditText) inflate.findViewById(R.id.editTextOneDialog);
-
+			CustomDialog customDialog = new CustomDialog(MainActivity.this,0,R.layout.one_dialog);
+			final EditText editTextIp = (EditText) customDialog.findViewById(R.id.editTextOneDialog);
 			editTextIp.requestFocus();
-			final AlertDialog.Builder inputDialog = new AlertDialog.Builder(MainActivity.this);
-
-			inputDialog.setTitle("输入请求的间隔时间，单位ms").setView(inflate);
+			customDialog.setTitle("输入需要的间隔，单位毫秒");
 			editTextIp.setInputType(EditorInfo.TYPE_CLASS_PHONE);
 			editTextIp.setText(interval);
-			inputDialog.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+			customDialog.setButton(DialogInterface.BUTTON_POSITIVE,"确定", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					interval = editTextIp.getText().toString();
@@ -349,22 +244,21 @@ public class MainActivity extends AppCompatActivity {
 					timer.scheduleAtFixedRate(task, Long.parseLong(interval),
 					        Long.parseLong(interval));
 				}
-			}).show();
+			});
+			customDialog.show();
 		} else if (id == R.id.about) {
-			LayoutInflater factory = LayoutInflater.from(this);
-			final View inflate = factory.inflate(R.layout.about_textview, null);
-			final TextView Tview = (TextView) inflate.findViewById(R.id.textIn);
-			final AlertDialog.Builder inputDialog = new AlertDialog.Builder(MainActivity.this);
-			inputDialog.setTitle("详细信息").setView(inflate);
+			CustomDialog customDialog = new CustomDialog(MainActivity.this,0,R.layout.about_textview);
+			final TextView Tview = (TextView) customDialog.findViewById(R.id.textIn);
+			customDialog.setTitle("详细信息");
 			Log.d(TAG, interval + " " + getMapURL + " " + setXYThetaURL);
 			Tview.setText("当前请求间隔 : " + interval + "ms" + "\n" + "请求的URL : " + getMapURL + "\n"
 			        + "设置目标的URL : " + setXYThetaURL + "\n" + "本机IP地址 :" + Tool.getIP(context));
+			customDialog.show();
 		} else if (id == R.id.log) {
-			LayoutInflater factory = LayoutInflater.from(this);
-			final View inflate = factory.inflate(R.layout.about_textview, null);
-			final TextView Tview = (TextView) inflate.findViewById(R.id.textIn);
-			final AlertDialog.Builder inputDialog = new AlertDialog.Builder(MainActivity.this);
-			inputDialog.setTitle("日志").setView(inflate);
+			CustomDialog customDialog = new CustomDialog(MainActivity.this,0,R.layout.about_textview);
+			final TextView Tview = (TextView) customDialog.findViewById(R.id.textIn);
+			customDialog.setTitle("日志");
+
 			Tview.setMovementMethod(ScrollingMovementMethod.getInstance());
 
 			Tview.setText(text);
@@ -375,15 +269,12 @@ public class MainActivity extends AppCompatActivity {
 			if (offset > Tview.getHeight()) {
 				Tview.scrollTo(0, offset - Tview.getHeight());
 			}
-
-			inputDialog.show();
+			customDialog.show();
 		} else if (id == R.id.set_wifi) {
-			LayoutInflater factory = LayoutInflater.from(this);
-			final View inflate = factory.inflate(R.layout.list_view, null);
-			final ListView listView = (ListView) inflate.findViewById(R.id.wifi_list_view);
+			final CustomDialog customDialog = new CustomDialog(MainActivity.this,0,R.layout.list_view);
+			final ListView listView = (ListView) customDialog.findViewById(R.id.wifi_list_view);
 			Log.d(TAG, "onOptionsItemSelected: set listview height = " + height);
-
-			pullToRefreshView = (PullToRefreshView) inflate.findViewById(R.id.pull_to_refresh);
+			pullToRefreshView = (PullToRefreshView) customDialog.findViewById(R.id.pull_to_refresh);
 
 			pullToRefreshView.setOnRefreshListener(new PullToRefreshView.OnRefreshListener() {
 				@Override
@@ -395,24 +286,21 @@ public class MainActivity extends AppCompatActivity {
 					pullToRefreshView.setRefreshing(false);
 				}
 			});
-			final AlertDialog.Builder inputDialog = new AlertDialog.Builder(MainActivity.this);
-
 			wifiManager.startScan();
 			scanResults = wifiManager.getScanResults();
-			adapter = new MyAdapter(inflate.getContext());
+			adapter = new wifiListAdapter(customDialog.getContext());
 			listView.setAdapter(adapter);
 			Log.d(TAG, "onOptionsItemSelected: scan results size = " + scanResults.size());
+			//remove duplicate
 			for (int i = 0; i < scanResults.size(); ++i) {
 				Log.d(TAG, "onOptionsItemSelected: i" + i + " " + scanResults.get(i).SSID);
 				if (null == scanResults.get(i).SSID || "".equals(scanResults.get(i).SSID)) {
 					scanResults.remove(i);
 				}
 			}
-			inputDialog.setTitle("WIFI").setView(inflate);
+			customDialog.setTitle("WIFI");
 
-			final AlertDialog dialog = inputDialog.create();
-
-			dialog.show();
+			customDialog.show();
 			listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 				@Override
 				public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -420,19 +308,8 @@ public class MainActivity extends AppCompatActivity {
 					TextView textView = (TextView) view.findViewById(R.id.wifi_id_item);
 					wifiID = String.valueOf(textView.getText());
 					Log.d(TAG, "onItemClick: texteview = " + textView.getText());
-					dialog.dismiss();
+					customDialog.dismiss();
 					showSetWIFIInfo();
-					new Thread(new Runnable() {
-						@Override
-						public void run() {
-							try {
-								sendWIFIInfo();
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
-						}
-					}).start();
-
 				}
 			});
 		}
@@ -449,6 +326,7 @@ public class MainActivity extends AppCompatActivity {
 		final AlertDialog.Builder inputDialog = new AlertDialog.Builder(MainActivity.this);
 		wifiNameText.setText(wifiID);
 		inputDialog.setTitle("输入WIFI信息").setView(inflate);
+
 		inputDialog.setPositiveButton("确定", new DialogInterface.OnClickListener() {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
@@ -457,6 +335,16 @@ public class MainActivity extends AppCompatActivity {
 					wifiPassWord = String.valueOf(wifiPassWordText.getText());
 				}
 				Log.d(TAG, "onClick: wifi pass word = " + wifiPassWord);
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							sendWIFIInfo();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}).start();
 			}
 		}).show();
 	}
@@ -472,7 +360,9 @@ public class MainActivity extends AppCompatActivity {
 		logSs.close();
 		listenStatus = false;
 		try {
-			ss.close();
+			if(ss != null){
+				ss.close();
+			}
 			recvMapSocket.close();
 			sendXYSocket.close();
 		} catch (IOException e) {
@@ -480,53 +370,6 @@ public class MainActivity extends AppCompatActivity {
 		}
 		// Picasso.with(context).cancelRequest(photoView);
 		Log.d(TAG, "activity destroy");
-	}
-
-	// 定时器的定时任务
-	private class getImgTask extends TimerTask {
-		@Override
-		public void run() {
-			Bitmap bitmap = null;
-			getMapURL = "http://" + nginxip + ":8866/gmap.txt";
-			String getPlanURL = "http://" + nginxip + ":8866/plan.txt";
-			if (true) {
-				// try {
-				// get为同步方式获取，fetch为异步
-				// Bitmap bitmapTmp = Picasso.with(context).load(getMapURL)
-				// .memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE)
-				// .networkPolicy(NetworkPolicy.NO_CACHE, NetworkPolicy.NO_STORE).get();
-				getMapFileTXT(getMapURL);
-				getPlanFileTXT(getPlanURL);
-				Bitmap bitmapTmp = drawBitmap();
-				Matrix matrix = new Matrix();
-				matrix.postRotate(+90);
-				// 绕中心垂直轴正方向旋转90度
-				matrix.postScale(1, -1);
-
-				bitmap = Bitmap.createBitmap(bitmapTmp, 0, 0, width, height, matrix, true);
-
-			} else {
-				bitmap = (Bitmap) Tool.getPgmImage(getMapURL).get("img");
-			}
-			if (null != bitmap) {
-				Message msg = handler.obtainMessage();
-				msg.what = 0;
-				msg.obj = bitmap;
-				handler.sendMessage(msg);
-
-				runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						Log.d(TAG, "getMapUrl = " + getMapURL);
-						countTextView.setText(String.valueOf(count));
-						count++;
-					}
-				});
-			} else {
-				Log.d(TAG, "http get bitmap is null!");
-			}
-
-		}
 	}
 
 	// 获取地图的文件
@@ -806,89 +649,6 @@ public class MainActivity extends AppCompatActivity {
 		return bitmap;
 	}
 
-	// 处理附带图片的消息的handler
-	private class getPictureHandler extends Handler {
-
-		@Override
-		public void handleMessage(Message msg) {
-
-			Bitmap b = (Bitmap) msg.obj;
-			if (isRunning) {
-				float scale = photoView.getScale();
-				int[] offset = new int[2];
-				float[] values = new float[9];
-				Matrix matrix = new Matrix();
-				photoView.getSuppMatrix(matrix);
-
-				matrix.getValues(values);
-				// x方向上的偏移量(单位px)
-				offset[0] = (int) values[2];
-				// y方向上的偏移量(单位px)
-				offset[1] = (int) values[5];
-				Log.d(TAG, "offset[0]" + offset[0]);
-				Log.d(TAG, "offset[1]" + offset[1]);
-
-				Log.d(TAG, "scale" + String.valueOf(scale));
-				photoView.getSuppMatrix(matrix);
-				photoView.setImageBitmap(b);
-				if (scale > photoView.getMinimumScale() && scale < photoView.getMaximumScale()) {
-					photoView.setScale(scale);
-				}
-
-				photoView.setSuppMatrix(matrix);
-			}
-			super.handleMessage(msg);
-		}
-	}
-
-	public class MyAdapter extends BaseAdapter {
-
-		LayoutInflater inflater;
-
-		public MyAdapter(Context context) {
-			// TODO Auto-generated constructor stub
-			this.inflater = LayoutInflater.from(context);
-		}
-
-		@Override
-		public int getCount() {
-			// TODO Auto-generated method stub
-			// return list.size();
-			return scanResults.size();
-		}
-
-		@Override
-		public Object getItem(int position) {
-			// TODO Auto-generated method stub
-			return position;
-		}
-
-		@Override
-		public long getItemId(int position) {
-			// TODO Auto-generated method stub
-			return position;
-		}
-
-		@Override
-		public View getView(int position, View convertView, ViewGroup parent) {
-			// TODO Auto-generated method stub
-			Tool.ViewHolder viewHolder;
-			if (convertView == null) {
-				convertView = inflater.inflate(R.layout.list_item, null);
-				viewHolder = new Tool.ViewHolder();
-				viewHolder.textView = (TextView) convertView.findViewById(R.id.wifi_id_item);
-				convertView.setTag(viewHolder);
-			} else {
-				viewHolder = (Tool.ViewHolder) convertView.getTag();
-			}
-			ScanResult scanResult = scanResults.get(position);
-			Log.d(TAG, "getView: wifi ssid = " + scanResult.SSID);
-			viewHolder.textView.setText(scanResult.SSID);
-			return convertView;
-		}
-
-	}
-
 	// 弹出dialog对话框，含有三个edittext
 	@Deprecated
 	private void showInputDialog() {
@@ -969,13 +729,13 @@ public class MainActivity extends AppCompatActivity {
 		byte[] temp = null;
 		byte[] sendBuff = new byte[12];
 		// 装入x
-		temp = Tool.toLH(xf);
+		temp = Tool.float2byte(xf);
 		System.arraycopy(temp, 0, sendBuff, 0, temp.length);
 		// 装入y
-		temp = Tool.toLH(yf);
+		temp = Tool.float2byte(yf);
 		System.arraycopy(temp, 0, sendBuff, 4, temp.length);
 		// 装入theta
-		temp = Tool.toLH(thetaf);
+		temp = Tool.float2byte(thetaf);
 		System.arraycopy(temp, 0, sendBuff, 8, temp.length);
 
 		// 新建socket
@@ -991,22 +751,242 @@ public class MainActivity extends AppCompatActivity {
 	// 发送wifi信息到小车供小车连接指定wifi
 	private void sendWIFIInfo() throws IOException {
 
-		Socket socket = new Socket(mobileWifi, 1111);
+		Log.d(TAG, "sendWIFIInfo: sendWIFIinfo");
+		Socket socket = new Socket(nginxip, 1111);
 		OutputStream outputStream = socket.getOutputStream();
 		byte[] wifiNameBytes = wifiID.getBytes();
 		byte[] wifiPassWordBytes = wifiPassWord.getBytes();
 		Log.d(TAG, "createSocketClient: bytes of name and password = " + wifiNameBytes.length + " "
 		        + wifiPassWordBytes.length);
-		int byteLength = wifiNameBytes.length + wifiPassWordBytes.length;
+		int nameByteLength = wifiNameBytes.length;
+		int passWordByteLength = wifiPassWordBytes.length;
 
-		outputStream.write(wifiNameBytes.length);
-		outputStream.write(wifiPassWordBytes.length);
-		outputStream.write(wifiNameBytes);
-		outputStream.write(wifiPassWordBytes);
+		// outputStream.write(Tool.int2byte(nameByteLength));
+		// outputStream.write(Tool.int2byte(passWordByteLength));
+		// outputStream.write(wifiNameBytes);
+		// outputStream.write(wifiPassWordBytes);
+		byte[] bytes = Tool.addBytes(Tool.int2byte(nameByteLength),
+		        Tool.int2byte(passWordByteLength));
+		bytes = Tool.addBytes(bytes, wifiNameBytes);
+		bytes = Tool.addBytes(bytes, wifiPassWordBytes);
+		Log.d(TAG, "sendWIFIInfo: final bytes length = " + bytes.length);
+		outputStream.write(bytes);
 		outputStream.flush();
+		Log.d(TAG, "sendWIFIInfo: end");
 		outputStream.close();
 		socket.close();
 		// outputStream.write();
+	}
+
+	@Deprecated
+	class SocketThread extends Thread {
+		private Socket socket_;
+
+		public SocketThread(Socket socket) {
+			this.socket_ = socket;
+		}
+
+		@Override
+		public void run() {
+			Bitmap rebitmap;
+			try {
+				while (true) {
+					socket_ = ss.accept();
+					socket_.setKeepAlive(true);
+					socket_.setTcpNoDelay(true);
+
+					long startTime = System.currentTimeMillis();
+					Log.d(TAG, "begin time = " + startTime);
+					Log.d(TAG, "local port = " + socket_.getLocalPort());
+					Log.d(TAG, "port = " + socket_.getPort());
+					String ip = socket_.getInetAddress().getHostAddress();
+					Log.d(TAG, "client ip = " + ip);
+					InputStream in = socket_.getInputStream();
+
+					rebitmap = BitmapFactory.decodeStream(in);
+					if (null != rebitmap) {
+						Message msg = handler.obtainMessage();
+						msg.what = 0;
+						msg.obj = rebitmap;
+						handler.sendMessage(msg);
+						long endTime = System.currentTimeMillis();
+						Log.d(TAG, "end time = " + endTime);
+						Log.d(TAG, "opt time = " + (endTime - startTime));
+					} else {
+						Log.d(TAG, "bitmap is null or bitmap is error format");
+					}
+					// ss.close();
+					// socket.close();
+					Log.d(TAG, "socket is closed? = " + socket_.isClosed());
+
+					runOnUiThread(new Runnable() {
+						@Override
+						public void run() {
+							countTextView.setText(String.valueOf(count));
+							count++;
+						}
+					});
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	// 接收小车程序的日志
+	class recvLogThread extends Thread {
+		@Override
+		public void run() {
+			try {
+				while (listenStatus) {
+					Log.d(TAG, "run: recvlogThread!!!!!!!!");
+					byte[] b = new byte[4096];
+					DatagramPacket recv = new DatagramPacket(b, 4096);
+
+					// logSs.setSoTimeout(2000);
+					logSs.receive(recv);
+					b = recv.getData();
+					String tmp = new String(b, 0, recv.getLength());
+
+					Log.d(TAG, "port = " + recv.getPort());
+					Log.d(TAG, "client ip = " + recv.getAddress().getHostAddress());
+					Log.d(TAG, "tmp recv data = " + tmp);
+					text = text + tmp;
+					Log.d(TAG, "text = " + text);
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	// 定时器的定时任务
+	private class getImgTask extends TimerTask {
+		@Override
+		public void run() {
+			Bitmap bitmap = null;
+			getMapURL = "http://" + nginxip + ":8866/gmap.txt";
+			String getPlanURL = "http://" + nginxip + ":8866/plan.txt";
+			if (true) {
+				// try {
+				// get为同步方式获取，fetch为异步
+				// Bitmap bitmapTmp = Picasso.with(context).load(getMapURL)
+				// .memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE)
+				// .networkPolicy(NetworkPolicy.NO_CACHE, NetworkPolicy.NO_STORE).get();
+				getMapFileTXT(getMapURL);
+				getPlanFileTXT(getPlanURL);
+				Bitmap bitmapTmp = drawBitmap();
+				Matrix matrix = new Matrix();
+				matrix.postRotate(+90);
+				// 绕中心垂直轴正方向旋转90度
+				matrix.postScale(1, -1);
+
+				bitmap = Bitmap.createBitmap(bitmapTmp, 0, 0, width, height, matrix, true);
+
+			} else {
+				bitmap = (Bitmap) Tool.getPgmImage(getMapURL).get("img");
+			}
+			if (null != bitmap) {
+				Message msg = handler.obtainMessage();
+				msg.what = 0;
+				msg.obj = bitmap;
+				handler.sendMessage(msg);
+
+				runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						Log.d(TAG, "getMapUrl = " + getMapURL);
+						countTextView.setText(String.valueOf(count));
+						count++;
+					}
+				});
+			} else {
+				Log.d(TAG, "http get bitmap is null!");
+			}
+
+		}
+	}
+
+	// 处理附带图片的消息的handler
+	private class getPictureHandler extends Handler {
+
+		@Override
+		public void handleMessage(Message msg) {
+
+			Bitmap b = (Bitmap) msg.obj;
+			if (isRunning) {
+				float scale = photoView.getScale();
+				int[] offset = new int[2];
+				float[] values = new float[9];
+				Matrix matrix = new Matrix();
+				photoView.getSuppMatrix(matrix);
+
+				matrix.getValues(values);
+				// x方向上的偏移量(单位px)
+				offset[0] = (int) values[2];
+				// y方向上的偏移量(单位px)
+				offset[1] = (int) values[5];
+				Log.d(TAG, "offset[0]" + offset[0]);
+				Log.d(TAG, "offset[1]" + offset[1]);
+
+				Log.d(TAG, "scale" + String.valueOf(scale));
+				photoView.getSuppMatrix(matrix);
+				photoView.setImageBitmap(b);
+				if (scale > photoView.getMinimumScale() && scale < photoView.getMaximumScale()) {
+					photoView.setScale(scale);
+				}
+
+				photoView.setSuppMatrix(matrix);
+			}
+			super.handleMessage(msg);
+		}
+	}
+
+	public class wifiListAdapter extends BaseAdapter {
+
+		LayoutInflater inflater;
+
+		public wifiListAdapter(Context context) {
+			// TODO Auto-generated constructor stub
+			this.inflater = LayoutInflater.from(context);
+		}
+
+		@Override
+		public int getCount() {
+			// TODO Auto-generated method stub
+			return scanResults.size();
+		}
+
+		@Override
+		public Object getItem(int position) {
+			// TODO Auto-generated method stub
+			return position;
+		}
+
+		@Override
+		public long getItemId(int position) {
+			// TODO Auto-generated method stub
+			return position;
+		}
+
+		@Override
+		public View getView(int position, View convertView, ViewGroup parent) {
+			// TODO Auto-generated method stub
+			Tool.ViewHolder viewHolder;
+			if (convertView == null) {
+				convertView = inflater.inflate(R.layout.list_item, null);
+				viewHolder = new Tool.ViewHolder();
+				viewHolder.textView = (TextView) convertView.findViewById(R.id.wifi_id_item);
+				convertView.setTag(viewHolder);
+			} else {
+				viewHolder = (Tool.ViewHolder) convertView.getTag();
+			}
+			ScanResult scanResult = scanResults.get(position);
+			Log.d(TAG, "getView: wifi ssid = " + scanResult.SSID);
+			viewHolder.textView.setText(scanResult.SSID);
+			return convertView;
+		}
+
 	}
 
 }
