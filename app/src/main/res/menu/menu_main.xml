@@ -43,4 +43,12 @@
         android:visible="true"
         android:textSize="16sp"/>
 
+    <item
+        android:id="@+id/set_xy"
+        android:orderInCategory="1"
+        android:title="@string/xy"
+        app:showAsAction="never"
+        android:visible="true"
+        android:textSize="16sp"/>
+
 </menu>

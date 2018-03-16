@@ -85,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
 	private TextView countTextView;
 	private int count = 1;
 	private Handler handler;
-	private String nginxip = "192.168.2.1";
+	private String nginxip = "192.168.31.26";
 	private String getMapURL;
 	private String setXYThetaURL = "http://" + nginxip + ":8866/goal?" + "x=?&y=?&theta=?";
 	private Timer timer = new Timer();
@@ -312,6 +312,8 @@ public class MainActivity extends AppCompatActivity {
 					showSetWIFIInfo();
 				}
 			});
+		}else if(id == R.id.set_xy){
+			showInputDialog();
 		}
 		return super.onOptionsItemSelected(item);
 	}
@@ -593,10 +595,12 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	private Bitmap drawBitmap() {
-		Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.pic);
-		bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+//		Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.pic);
+//		bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+
+		Bitmap bitmap = Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);
 		Canvas canvas = new Canvas(bitmap);
-		// canvas.drawColor(Color.rgb(20,90,160));
+		 canvas.drawColor(Color.rgb(20,90,160));
 		if (frontier == null || frontier.length == 0 || pose_s == null) {
 			return bitmap;
 		}
@@ -649,7 +653,6 @@ public class MainActivity extends AppCompatActivity {
 		return bitmap;
 	}
 
-	// 弹出dialog对话框，含有三个edittext
 	@Deprecated
 	private void showInputDialog() {
 		LayoutInflater factory = LayoutInflater.from(this);
@@ -701,7 +704,6 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 	// 设置x,y,theta的get请求
-	@Deprecated
 	public void setXYThetaHttp(String x, String y, String theta) {
 		setXYThetaURL = "http://" + nginxip + ":8866/goal?" + "x=" + x + "&y=" + y + "&theta="
 		        + theta;
@@ -880,7 +882,7 @@ public class MainActivity extends AppCompatActivity {
 				matrix.postRotate(+90);
 				// 绕中心垂直轴正方向旋转90度
 				matrix.postScale(1, -1);
-
+				Log.d(TAG, "run: bitmap tmp size height =  "+bitmapTmp.getHeight()+" width = "+bitmapTmp.getWidth());
 				bitmap = Bitmap.createBitmap(bitmapTmp, 0, 0, width, height, matrix, true);
 
 			} else {
